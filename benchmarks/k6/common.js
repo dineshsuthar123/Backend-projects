@@ -5,8 +5,11 @@ export const baseUrl = __ENV.BASE_URL || "http://localhost:8081";
 export const targetUrl = __ENV.TARGET_URL || "https://spring.io/projects/spring-boot";
 
 export function syntheticIp() {
-  const third = Math.floor(__VU / 240) % 200;
-  const fourth = (__VU % 240) + 10;
+  const vu = typeof __VU === "number" ? __VU : 0;
+  const iter = typeof __ITER === "number" ? __ITER : 0;
+  const sequence = (vu * 100000 + iter) % 50000;
+  const third = Math.floor(sequence / 240) % 200;
+  const fourth = (sequence % 240) + 10;
   return `10.20.${third}.${fourth}`;
 }
 

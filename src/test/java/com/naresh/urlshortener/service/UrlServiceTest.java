@@ -85,6 +85,73 @@ class UrlServiceTest {
     }
 
     @Test
+    void resolveCacheMissLoadsFromRepositoryAndWarmsCache() {
+        UrlService service = service(fixedGenerator("unused"), cacheMissCoordinator);
+        UrlMapping mapping = new UrlMapping("miss1234", "https://example.com/db", Instant.now(), null);
+        when(repository.findByShortCode("miss1234")).thenReturn(Optional.of(mapping));
+
+        ResolvedUrl resolved = service.resolve("miss1234");
+
+        assertThat(resolved.cacheHit()).isFalse();
+        assertThat(resolved.originalUrl()).isEqualTo("https://example.com/db");
+        assertThat(cache.get("miss1234")).contains("https://example.com/db");
+    }
+
+    @Test
+    void statsReturnsMappingCacheStateAndAnalyticsCount() {
+        UrlService service = service(fixedGenerator("unused"), cacheMissCoordinator);
+        UrlMapping mapping = new UrlMapping("stats123", "https://example.com/stats", Instant.now(), null);
+        cache.put("stats123", "https://example.com/stats", null);
+        when(repository.findByShortCode("stats123")).thenReturn(Optional.of(mapping));
+        when(analyticsEventRepository.countByShortCode("stats123")).thenReturn(42L);
+
+        var stats = service.stats("stats123");
+
+        assertThat(stats.cacheHit()).isTrue();
+        assertThat(stats.redirectEvents()).isEqualTo(42L);
+    }
+
+    @Test
+    void generatedCodeRetriesUntilUniqueCandidateIsFound() {
+        ShortCodeGenerator generator = new ShortCodeGenerator() {
+            private int calls;
+
+            @Override
+            public String generate(int length) {
+                calls++;
+                return calls == 1 ? "taken111" : "free2222";
+            }
+        };
+        UrlService service = service(generator, cacheMissCoordinator);
+        when(repository.existsByShortCode("taken111")).thenReturn(true);
+        when(repository.existsByShortCode("free2222")).thenReturn(false);
+        when(repository.save(org.mockito.ArgumentMatchers.any(UrlMapping.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        CreateShortUrlResponse response = service.create(new CreateShortUrlRequest("https://example.com/a", null, null));
+
+        assertThat(response.shortCode()).isEqualTo("free2222");
+    }
+
+    @Test
+    void generatedCodeFailsAfterTooManyCollisions() {
+        UrlService service = service(fixedGenerator("taken111"), cacheMissCoordinator);
+        when(repository.existsByShortCode("taken111")).thenReturn(true);
+
+        assertThatThrownBy(() -> service.create(new CreateShortUrlRequest("https://example.com/a", null, null)))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void evictCacheRejectsMissingShortCode() {
+        UrlService service = service(fixedGenerator("unused"), cacheMissCoordinator);
+        when(repository.existsByShortCode("missing1")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.evictCache("missing1"))
+                .isInstanceOf(UrlNotFoundException.class);
+    }
+
+    @Test
     void createRejectsDuplicateCustomAlias() {
         UrlService service = service(fixedGenerator("unused"), cacheMissCoordinator);
         CreateShortUrlRequest request = new CreateShortUrlRequest("https://example.com/a", "taken1", null);

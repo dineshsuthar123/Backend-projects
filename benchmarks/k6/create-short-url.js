@@ -21,12 +21,16 @@ export const options = {
 };
 
 export default function () {
+  const payload = {
+    originalUrl: `${targetUrl}?vu=${__VU}&iter=${__ITER}`,
+  };
+  if (__ENV.CUSTOM_ALIAS === "true") {
+    payload.customAlias = uniqueAlias("create");
+  }
+
   const response = http.post(
     `${baseUrl}/api/v1/urls`,
-    JSON.stringify({
-      originalUrl: `${targetUrl}?vu=${__VU}&iter=${__ITER}`,
-      customAlias: uniqueAlias("create"),
-    }),
+    JSON.stringify(payload),
     {
       headers: { "Content-Type": "application/json", "X-Forwarded-For": syntheticIp() },
       tags: { name: "create_short_url" },

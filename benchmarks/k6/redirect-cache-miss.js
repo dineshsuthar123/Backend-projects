@@ -1,5 +1,5 @@
 import { sleep } from "k6";
-import { createUrl, evictCache, redirect, uniqueAlias } from "./common.js";
+import { createUrl, evictCache, redirect } from "./common.js";
 
 export const options = {
   scenarios: {
@@ -20,7 +20,7 @@ export const options = {
 };
 
 export default function () {
-  const created = createUrl(uniqueAlias("miss"));
+  const created = createUrl();
   evictCache(created.shortCode);
   redirect(created.shortCode, created.originalUrl, "redirect_cache_miss");
   sleep(0.01);
