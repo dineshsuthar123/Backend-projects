@@ -1,0 +1,65 @@
+{
+  "uid": "url-shortener",
+  "title": "URL Shortener Runtime",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Redirects / sec",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "targets": [
+        { "expr": "sum(rate(url_redirect_total[1m]))", "legendFormat": "redirects/s" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Cache Hit Ratio",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "targets": [
+        { "expr": "sum(rate(url_cache_hit_total[1m])) / clamp_min(sum(rate(url_cache_hit_total[1m])) + sum(rate(url_cache_miss_total[1m])), 1)", "legendFormat": "ratio" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Rate Limited / sec",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "targets": [
+        { "expr": "sum(rate(url_rate_limited_total[1m]))", "legendFormat": "429/s" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Analytics Events / sec",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "targets": [
+        { "expr": "sum(rate(url_analytics_events_total[1m]))", "legendFormat": "events/s" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Redirect Latency",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(url_redirect_latency_seconds_bucket[5m])) by (le))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, sum(rate(url_redirect_latency_seconds_bucket[5m])) by (le))", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, sum(rate(url_redirect_latency_seconds_bucket[5m])) by (le))", "legendFormat": "p99" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Cache And DB Lookup Rates",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "sum(rate(url_cache_hit_total[1m]))", "legendFormat": "cache hit" },
+        { "expr": "sum(rate(url_cache_miss_total[1m]))", "legendFormat": "cache miss" },
+        { "expr": "sum(rate(url_database_lookup_total[1m]))", "legendFormat": "db lookup" }
+      ]
+    }
+  ]
+}

@@ -45,6 +45,15 @@ class RedisUrlCache implements UrlCache {
         }
     }
 
+    @Override
+    public void evict(String shortCode) {
+        try {
+            redis.delete(key(shortCode));
+        } catch (RuntimeException ex) {
+            log.warn("Redis evict failed for shortCode={}", shortCode, ex);
+        }
+    }
+
     private String key(String shortCode) {
         return cachePrefix + shortCode;
     }

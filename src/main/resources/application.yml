@@ -67,6 +67,18 @@ management:
     health:
       probes:
         enabled: true
+  metrics:
+    distribution:
+      percentiles-histogram:
+        url.redirect.latency: true
+      percentiles:
+        url.redirect.latency: 0.5,0.95,0.99
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{requestId:-no-request-id}] %logger{36} - %msg%n"
 
 app:
   datasource:

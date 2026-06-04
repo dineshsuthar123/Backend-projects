@@ -41,7 +41,7 @@
           </label>
           <label class="field">
             <span>TTL seconds</span>
-            <input id="ttlSeconds" type="number" min="60" max="31536000" placeholder="optional">
+            <input id="ttlSeconds" type="number" min="1" max="31536000" placeholder="optional">
           </label>
         </div>
 
@@ -73,6 +73,7 @@
           <button class="secondary-button" id="statsButton">Fetch Stats</button>
           <button class="secondary-button" id="burstButton">Rate Limit Burst</button>
           <button class="secondary-button" id="cacheButton">Warm Cache</button>
+          <button class="secondary-button" id="evictButton">Evict Cache</button>
         </div>
 
         <div class="meter-grid">
@@ -107,8 +108,9 @@
       <div class="panel compact">
         <p class="eyebrow">Benchmark</p>
         <h2>k6 Command</h2>
-        <pre><code>k6 run benchmarks/k6/url-shortener-redirect.js</code></pre>
-        <p class="hint">Default benchmark now respects the token bucket. Raise RPS only when you want to test limiter behavior.</p>
+        <pre><code>k6 run benchmarks/k6/redirect-cache-hit.js
+k6 run benchmarks/k6/cache-stampede.js</code></pre>
+        <p class="hint">Use the full suite in README when you want p50, p95, p99, rate-limit, TTL, and stress proof.</p>
       </div>
 
       <div class="panel compact">

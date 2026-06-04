@@ -5,6 +5,7 @@ import com.naresh.urlshortener.api.CreateShortUrlResponse;
 import com.naresh.urlshortener.api.UrlStatsResponse;
 import com.naresh.urlshortener.config.AppProperties;
 import com.naresh.urlshortener.domain.UrlMapping;
+import com.naresh.urlshortener.observability.UrlShortenerMetrics;
 import com.naresh.urlshortener.repository.AnalyticsEventRepository;
 import com.naresh.urlshortener.repository.UrlMappingRepository;
 import org.springframework.stereotype.Service;
@@ -25,16 +26,19 @@ public class UrlService {
     private final UrlCache cache;
     private final CacheMissCoordinator cacheMissCoordinator;
     private final AppProperties properties;
+    private final UrlShortenerMetrics metrics;
 
     public UrlService(UrlMappingRepository repository, AnalyticsEventRepository analyticsEventRepository,
                       ShortCodeGenerator generator, UrlCache cache,
-                      CacheMissCoordinator cacheMissCoordinator, AppProperties properties) {
+                      CacheMissCoordinator cacheMissCoordinator, AppProperties properties,
+                      UrlShortenerMetrics metrics) {
         this.repository = repository;
         this.analyticsEventRepository = analyticsEventRepository;
         this.generator = generator;
         this.cache = cache;
         this.cacheMissCoordinator = cacheMissCoordinator;
         this.properties = properties;
+        this.metrics = metrics;
     }
 
     @Transactional
@@ -45,6 +49,7 @@ public class UrlService {
 
         UrlMapping saved = repository.save(new UrlMapping(shortCode, request.originalUrl(), now, expiresAt));
         cache.put(shortCode, saved.getOriginalUrl(), ttlFrom(now, saved.getExpiresAt()));
+        metrics.recordCreate();
 
         return new CreateShortUrlResponse(
                 saved.getShortCode(),
@@ -57,9 +62,13 @@ public class UrlService {
 
     @Transactional(readOnly = true)
     public ResolvedUrl resolve(String shortCode) {
-        return cache.get(shortCode)
-                .map(originalUrl -> new ResolvedUrl(shortCode, originalUrl, true))
-                .orElseGet(() -> resolveCacheMiss(shortCode));
+        Optional<String> cached = cache.get(shortCode);
+        if (cached.isPresent()) {
+            metrics.recordCacheHit();
+            return new ResolvedUrl(shortCode, cached.get(), true);
+        }
+        metrics.recordCacheMiss();
+        return resolveCacheMiss(shortCode);
     }
 
     @Transactional(readOnly = true)
@@ -69,6 +78,13 @@ public class UrlService {
         Optional<String> cached = cache.get(shortCode);
         long redirectEvents = analyticsEventRepository.countByShortCode(shortCode);
         return new UrlStatsResponse(shortCode, mapping.getOriginalUrl(), cached.isPresent(), redirectEvents);
+    }
+
+    public void evictCache(String shortCode) {
+        if (!repository.existsByShortCode(shortCode)) {
+            throw new UrlNotFoundException(shortCode);
+        }
+        cache.evict(shortCode);
     }
 
     private ResolvedUrl resolveCacheMiss(String shortCode) {
@@ -88,6 +104,7 @@ public class UrlService {
 
     private ResolvedUrl resolveFromDatabase(String shortCode) {
         Instant now = Instant.now();
+        metrics.recordDatabaseLookup();
         UrlMapping mapping = repository.findByShortCode(shortCode)
                 .orElseThrow(() -> new UrlNotFoundException(shortCode));
 

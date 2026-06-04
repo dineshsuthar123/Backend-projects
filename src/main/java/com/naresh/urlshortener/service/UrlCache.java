@@ -8,4 +8,6 @@ public interface UrlCache {
     Optional<String> get(String shortCode);
 
     void put(String shortCode, String originalUrl, Duration ttl);
+
+    void evict(String shortCode);
 }

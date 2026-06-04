@@ -2,6 +2,7 @@ package com.naresh.urlshortener.service;
 
 import com.naresh.urlshortener.config.AppProperties;
 import com.naresh.urlshortener.domain.AnalyticsEventEntity;
+import com.naresh.urlshortener.observability.UrlShortenerMetrics;
 import com.naresh.urlshortener.repository.AnalyticsEventRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -30,13 +31,15 @@ public class AnalyticsService {
     private final AnalyticsEventRepository repository;
     private final AppProperties.Analytics properties;
     private final AnalyticsPublisher analyticsPublisher;
+    private final UrlShortenerMetrics metrics;
     private final LongAdder droppedEvents = new LongAdder();
 
     public AnalyticsService(AnalyticsEventRepository repository, AppProperties appProperties,
-                            ObjectProvider<AnalyticsPublisher> analyticsPublisher) {
+                            ObjectProvider<AnalyticsPublisher> analyticsPublisher, UrlShortenerMetrics metrics) {
         this.repository = repository;
         this.properties = appProperties.analytics();
         this.analyticsPublisher = analyticsPublisher.getIfAvailable();
+        this.metrics = metrics;
         this.queue = new ArrayBlockingQueue<>(this.properties.queueCapacity());
     }
 
@@ -50,11 +53,15 @@ public class AnalyticsService {
         );
 
         if (properties.durableEnabled() && analyticsPublisher != null && analyticsPublisher.publish(event)) {
+            metrics.recordAnalyticsEvent("durable_published");
             return;
         }
 
         if (!queue.offer(event)) {
             droppedEvents.increment();
+            metrics.recordAnalyticsEvent("dropped");
+        } else {
+            metrics.recordAnalyticsEvent("queued");
         }
     }
 
@@ -72,9 +79,11 @@ public class AnalyticsService {
 
         try {
             repository.saveAll(entities);
+            metrics.recordAnalyticsEvents("persisted", entities.size());
         } catch (RuntimeException ex) {
             log.error("Failed to persist {} analytics events", events.size(), ex);
             droppedEvents.add(events.size());
+            metrics.recordAnalyticsEvents("dropped", events.size());
         }
     }
 

@@ -4,8 +4,10 @@ import com.naresh.urlshortener.api.CreateShortUrlRequest;
 import com.naresh.urlshortener.api.CreateShortUrlResponse;
 import com.naresh.urlshortener.config.AppProperties;
 import com.naresh.urlshortener.domain.UrlMapping;
+import com.naresh.urlshortener.observability.UrlShortenerMetrics;
 import com.naresh.urlshortener.repository.AnalyticsEventRepository;
 import com.naresh.urlshortener.repository.UrlMappingRepository;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -27,6 +29,7 @@ class UrlServiceTest {
     private final AnalyticsEventRepository analyticsEventRepository = mock(AnalyticsEventRepository.class);
     private final FakeUrlCache cache = new FakeUrlCache();
     private final CacheMissCoordinator cacheMissCoordinator = new FakeCacheMissCoordinator();
+    private final UrlShortenerMetrics metrics = new UrlShortenerMetrics(new SimpleMeterRegistry());
     private final AppProperties properties = new AppProperties(
             "http://sho.rt",
             8,
@@ -39,7 +42,7 @@ class UrlServiceTest {
     @Test
     void createStoresMappingAndWarmsCache() {
         ShortCodeGenerator generator = fixedGenerator("abc12345");
-        UrlService service = new UrlService(repository, analyticsEventRepository, generator, cache, cacheMissCoordinator, properties);
+        UrlService service = service(generator, cacheMissCoordinator);
         CreateShortUrlRequest request = new CreateShortUrlRequest("https://example.com/a", null, 3600L);
 
         when(repository.existsByShortCode("abc12345")).thenReturn(false);
@@ -55,7 +58,7 @@ class UrlServiceTest {
 
     @Test
     void resolveReturnsCacheHitWithoutRepositoryLookup() {
-        UrlService service = new UrlService(repository, analyticsEventRepository, fixedGenerator("unused"), cache, cacheMissCoordinator, properties);
+        UrlService service = service(fixedGenerator("unused"), cacheMissCoordinator);
         cache.put("abc12345", "https://example.com/cached", null);
 
         ResolvedUrl resolved = service.resolve("abc12345");
@@ -67,7 +70,7 @@ class UrlServiceTest {
 
     @Test
     void resolveRejectsExpiredDatabaseMapping() {
-        UrlService service = new UrlService(repository, analyticsEventRepository, fixedGenerator("unused"), cache, cacheMissCoordinator, properties);
+        UrlService service = service(fixedGenerator("unused"), cacheMissCoordinator);
         UrlMapping expired = new UrlMapping(
                 "expired1",
                 "https://example.com/old",
@@ -79,6 +82,55 @@ class UrlServiceTest {
 
         assertThatThrownBy(() -> service.resolve("expired1"))
                 .isInstanceOf(UrlExpiredException.class);
+    }
+
+    @Test
+    void createRejectsDuplicateCustomAlias() {
+        UrlService service = service(fixedGenerator("unused"), cacheMissCoordinator);
+        CreateShortUrlRequest request = new CreateShortUrlRequest("https://example.com/a", "taken1", null);
+
+        when(repository.existsByShortCode("taken1")).thenReturn(true);
+
+        assertThatThrownBy(() -> service.create(request))
+                .isInstanceOf(AliasAlreadyExistsException.class);
+    }
+
+    @Test
+    void evictCacheRemovesExistingCachedMapping() {
+        UrlService service = service(fixedGenerator("unused"), cacheMissCoordinator);
+        cache.put("abc12345", "https://example.com/cached", null);
+        when(repository.existsByShortCode("abc12345")).thenReturn(true);
+
+        service.evictCache("abc12345");
+
+        assertThat(cache.get("abc12345")).isEmpty();
+    }
+
+    @Test
+    void cacheMissUsesWarmedValueWhenAnotherRequestOwnsLoad() {
+        CacheMissCoordinator warmingCoordinator = new CacheMissCoordinator() {
+            @Override
+            public Optional<CacheLease> tryAcquire(String shortCode) {
+                return Optional.empty();
+            }
+
+            @Override
+            public Optional<String> waitForCachedValue(String shortCode, UrlCache cache) {
+                cache.put(shortCode, "https://example.com/warmed", null);
+                return cache.get(shortCode);
+            }
+        };
+        UrlService service = service(fixedGenerator("unused"), warmingCoordinator);
+
+        ResolvedUrl resolved = service.resolve("abc12345");
+
+        assertThat(resolved.originalUrl()).isEqualTo("https://example.com/warmed");
+        assertThat(resolved.cacheHit()).isTrue();
+        verify(repository, never()).findByShortCode("abc12345");
+    }
+
+    private UrlService service(ShortCodeGenerator generator, CacheMissCoordinator coordinator) {
+        return new UrlService(repository, analyticsEventRepository, generator, cache, coordinator, properties, metrics);
     }
 
     private static ShortCodeGenerator fixedGenerator(String value) {
@@ -101,6 +153,11 @@ class UrlServiceTest {
         @Override
         public void put(String shortCode, String originalUrl, Duration ttl) {
             values.put(shortCode, originalUrl);
+        }
+
+        @Override
+        public void evict(String shortCode) {
+            values.remove(shortCode);
         }
     }
 

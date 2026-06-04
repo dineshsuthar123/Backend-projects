@@ -2,6 +2,7 @@ package com.naresh.urlshortener.rate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.naresh.urlshortener.api.ErrorResponse;
+import com.naresh.urlshortener.observability.UrlShortenerMetrics;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,10 +19,12 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
     private final RateLimiter rateLimiter;
     private final ObjectMapper objectMapper;
+    private final UrlShortenerMetrics metrics;
 
-    public RateLimitingFilter(RateLimiter rateLimiter, ObjectMapper objectMapper) {
+    public RateLimitingFilter(RateLimiter rateLimiter, ObjectMapper objectMapper, UrlShortenerMetrics metrics) {
         this.rateLimiter = rateLimiter;
         this.objectMapper = objectMapper;
+        this.metrics = metrics;
     }
 
     @Override
@@ -41,10 +44,11 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             return;
         }
 
+        metrics.recordRateLimited();
         response.setStatus(429);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setHeader(HttpHeaders.RETRY_AFTER, Long.toString(result.retryAfterSeconds()));
-        objectMapper.writeValue(response.getWriter(), ErrorResponse.of(429, "too_many_requests", "Rate limit exceeded"));
+        objectMapper.writeValue(response.getWriter(), ErrorResponse.of(429, "TOO_MANY_REQUESTS", "Rate limit exceeded"));
     }
 
     private static String clientKey(HttpServletRequest request) {

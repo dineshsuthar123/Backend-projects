@@ -141,6 +141,22 @@ async function warmCache() {
   await fetchStats();
 }
 
+async function evictCache() {
+  const code = $("shortCode").value.trim();
+  if (!code) return;
+  try {
+    const { response, body } = await request(`/api/v1/urls/${code}/cache`, {
+      method: "DELETE",
+      headers: {},
+    });
+    if (!response.ok) throw new Error(body?.message || `Evict failed with ${response.status}`);
+    $("cacheState").textContent = "Cold";
+    logEvent("Cache evicted", code);
+  } catch (error) {
+    logEvent("Evict failed", error.message);
+  }
+}
+
 function wire() {
   $("createButton").addEventListener("click", createShortUrl);
   $("clearButton").addEventListener("click", () => {
@@ -155,6 +171,7 @@ function wire() {
   $("statsButton").addEventListener("click", fetchStats);
   $("burstButton").addEventListener("click", burstRateLimit);
   $("cacheButton").addEventListener("click", warmCache);
+  $("evictButton").addEventListener("click", evictCache);
 }
 
 wire();
