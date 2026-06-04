@@ -1,0 +1,63 @@
+server:
+  port: 8081
+  compression:
+    enabled: true
+
+spring:
+  application:
+    name: high-performance-url-shortener
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:15432/url_shortener
+    username: url_shortener
+    password: url_shortener
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 500
+      validation-timeout: 300
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 500
+        order_inserts: true
+        order_updates: true
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 16379
+      timeout: 200ms
+      lettuce:
+        pool:
+          max-active: 64
+          max-idle: 16
+          min-idle: 4
+  flyway:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+app:
+  base-url: http://localhost:8081
+  code-length: 8
+  cache-prefix: "url:"
+  rate-limit:
+    enabled: true
+    requests: 120
+    window: 1m
+  analytics:
+    queue-capacity: 10000
+    batch-size: 500
+    flush-delay: 2000
+    hash-salt: ${ANALYTICS_HASH_SALT:dev-only-change-me}

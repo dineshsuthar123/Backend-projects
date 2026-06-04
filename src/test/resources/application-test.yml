@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:url_shortener;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+  flyway:
+    enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+
+app:
+  base-url: http://localhost:8081
+  code-length: 8
+  cache-prefix: "url:"
+  rate-limit:
+    enabled: false
+    requests: 120
+    window: 1m
+  analytics:
+    queue-capacity: 1000
+    batch-size: 100
+    flush-delay: 2000
+    hash-salt: test
