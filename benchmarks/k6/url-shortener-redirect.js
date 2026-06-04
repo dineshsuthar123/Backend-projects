@@ -4,9 +4,12 @@ import { check, sleep } from "k6";
 export const options = {
   scenarios: {
     redirects: {
-      executor: "constant-vus",
-      vus: Number(__ENV.VUS || 50),
+      executor: "constant-arrival-rate",
+      rate: Number(__ENV.RPS || 80),
+      timeUnit: "1s",
       duration: __ENV.DURATION || "60s",
+      preAllocatedVUs: Number(__ENV.VUS || 50),
+      maxVUs: Number(__ENV.MAX_VUS || 100),
     },
   },
   thresholds: {
@@ -17,11 +20,17 @@ export const options = {
 };
 
 const baseUrl = __ENV.BASE_URL || "http://localhost:8081";
+const originalUrl = "https://spring.io/projects/spring-boot";
+
+function clientIp() {
+  const lastOctet = (__VU % 240) + 10;
+  return `10.10.0.${lastOctet}`;
+}
 
 export function setup() {
   const response = http.post(
     `${baseUrl}/api/v1/urls`,
-    JSON.stringify({ originalUrl: "https://spring.io/projects/spring-boot" }),
+    JSON.stringify({ originalUrl }),
     { headers: { "Content-Type": "application/json" } }
   );
 
@@ -35,11 +44,14 @@ export function setup() {
 export default function (created) {
   const response = http.get(`${baseUrl}/${created.shortCode}`, {
     redirects: 0,
+    headers: {
+      "X-Forwarded-For": clientIp(),
+    },
   });
 
   check(response, {
     "redirect is 302": (r) => r.status === 302,
-    "location is original url": (r) => r.headers.Location === "https://spring.io/projects/spring-boot",
+    "location is original url": (r) => r.headers.Location === originalUrl,
   });
 
   sleep(0.01);

@@ -4,6 +4,7 @@ import com.naresh.urlshortener.api.CreateShortUrlRequest;
 import com.naresh.urlshortener.api.CreateShortUrlResponse;
 import com.naresh.urlshortener.config.AppProperties;
 import com.naresh.urlshortener.domain.UrlMapping;
+import com.naresh.urlshortener.repository.AnalyticsEventRepository;
 import com.naresh.urlshortener.repository.UrlMappingRepository;
 import org.junit.jupiter.api.Test;
 
@@ -23,6 +24,7 @@ import static org.mockito.Mockito.when;
 class UrlServiceTest {
 
     private final UrlMappingRepository repository = mock(UrlMappingRepository.class);
+    private final AnalyticsEventRepository analyticsEventRepository = mock(AnalyticsEventRepository.class);
     private final FakeUrlCache cache = new FakeUrlCache();
     private final CacheMissCoordinator cacheMissCoordinator = new FakeCacheMissCoordinator();
     private final AppProperties properties = new AppProperties(
@@ -37,7 +39,7 @@ class UrlServiceTest {
     @Test
     void createStoresMappingAndWarmsCache() {
         ShortCodeGenerator generator = fixedGenerator("abc12345");
-        UrlService service = new UrlService(repository, generator, cache, cacheMissCoordinator, properties);
+        UrlService service = new UrlService(repository, analyticsEventRepository, generator, cache, cacheMissCoordinator, properties);
         CreateShortUrlRequest request = new CreateShortUrlRequest("https://example.com/a", null, 3600L);
 
         when(repository.existsByShortCode("abc12345")).thenReturn(false);
@@ -53,7 +55,7 @@ class UrlServiceTest {
 
     @Test
     void resolveReturnsCacheHitWithoutRepositoryLookup() {
-        UrlService service = new UrlService(repository, fixedGenerator("unused"), cache, cacheMissCoordinator, properties);
+        UrlService service = new UrlService(repository, analyticsEventRepository, fixedGenerator("unused"), cache, cacheMissCoordinator, properties);
         cache.put("abc12345", "https://example.com/cached", null);
 
         ResolvedUrl resolved = service.resolve("abc12345");
@@ -65,7 +67,7 @@ class UrlServiceTest {
 
     @Test
     void resolveRejectsExpiredDatabaseMapping() {
-        UrlService service = new UrlService(repository, fixedGenerator("unused"), cache, cacheMissCoordinator, properties);
+        UrlService service = new UrlService(repository, analyticsEventRepository, fixedGenerator("unused"), cache, cacheMissCoordinator, properties);
         UrlMapping expired = new UrlMapping(
                 "expired1",
                 "https://example.com/old",

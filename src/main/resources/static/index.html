@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>URL Shortener Control Plane</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">High-performance backend lab</p>
+      <h1>URL Shortener Control Plane</h1>
+    </div>
+    <div class="status-strip">
+      <span class="status-dot" id="healthDot"></span>
+      <span id="healthLabel">Checking service</span>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="workspace">
+      <div class="panel create-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Create</p>
+            <h2>Short URL Builder</h2>
+          </div>
+          <button class="ghost-button" id="loadExample">Load example</button>
+        </div>
+
+        <label class="field">
+          <span>Original URL</span>
+          <input id="originalUrl" type="url" value="https://spring.io/projects/spring-boot" autocomplete="off">
+        </label>
+
+        <div class="two-col">
+          <label class="field">
+            <span>Custom alias</span>
+            <input id="customAlias" type="text" placeholder="optional">
+          </label>
+          <label class="field">
+            <span>TTL seconds</span>
+            <input id="ttlSeconds" type="number" min="60" max="31536000" placeholder="optional">
+          </label>
+        </div>
+
+        <div class="action-row">
+          <button class="primary-button" id="createButton">Create Short URL</button>
+          <button class="secondary-button" id="clearButton">Clear Result</button>
+        </div>
+
+        <div class="result-box" id="createResult">
+          <span class="muted">Create a URL to see the generated short code, redirect target, and next actions.</span>
+        </div>
+      </div>
+
+      <div class="panel test-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Exercise</p>
+            <h2>Redirect And Protection Tests</h2>
+          </div>
+        </div>
+
+        <label class="field">
+          <span>Short code</span>
+          <input id="shortCode" type="text" placeholder="Paste or create a code">
+        </label>
+
+        <div class="button-grid">
+          <button class="secondary-button" id="redirectButton">Test Redirect</button>
+          <button class="secondary-button" id="statsButton">Fetch Stats</button>
+          <button class="secondary-button" id="burstButton">Rate Limit Burst</button>
+          <button class="secondary-button" id="cacheButton">Warm Cache</button>
+        </div>
+
+        <div class="meter-grid">
+          <div class="metric">
+            <span>Last status</span>
+            <strong id="lastStatus">-</strong>
+          </div>
+          <div class="metric">
+            <span>Cache state</span>
+            <strong id="cacheState">-</strong>
+          </div>
+          <div class="metric">
+            <span>Analytics events</span>
+            <strong id="eventCount">-</strong>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="panel compact">
+        <p class="eyebrow">System</p>
+        <h2>Runtime Checks</h2>
+        <div class="runtime-list">
+          <div><span>API</span><strong id="apiState">Checking</strong></div>
+          <div><span>PostgreSQL</span><strong>15432</strong></div>
+          <div><span>Redis</span><strong>16379</strong></div>
+          <div><span>Redpanda</span><strong>19092</strong></div>
+        </div>
+      </div>
+
+      <div class="panel compact">
+        <p class="eyebrow">Benchmark</p>
+        <h2>k6 Command</h2>
+        <pre><code>k6 run benchmarks/k6/url-shortener-redirect.js</code></pre>
+        <p class="hint">Default benchmark now respects the token bucket. Raise RPS only when you want to test limiter behavior.</p>
+      </div>
+
+      <div class="panel compact">
+        <p class="eyebrow">Activity</p>
+        <h2>Event Log</h2>
+        <ol class="event-log" id="eventLog"></ol>
+      </div>
+    </aside>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

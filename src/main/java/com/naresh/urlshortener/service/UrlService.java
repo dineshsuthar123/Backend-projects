@@ -2,8 +2,10 @@ package com.naresh.urlshortener.service;
 
 import com.naresh.urlshortener.api.CreateShortUrlRequest;
 import com.naresh.urlshortener.api.CreateShortUrlResponse;
+import com.naresh.urlshortener.api.UrlStatsResponse;
 import com.naresh.urlshortener.config.AppProperties;
 import com.naresh.urlshortener.domain.UrlMapping;
+import com.naresh.urlshortener.repository.AnalyticsEventRepository;
 import com.naresh.urlshortener.repository.UrlMappingRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,14 +20,17 @@ public class UrlService {
     private static final int MAX_GENERATION_ATTEMPTS = 10;
 
     private final UrlMappingRepository repository;
+    private final AnalyticsEventRepository analyticsEventRepository;
     private final ShortCodeGenerator generator;
     private final UrlCache cache;
     private final CacheMissCoordinator cacheMissCoordinator;
     private final AppProperties properties;
 
-    public UrlService(UrlMappingRepository repository, ShortCodeGenerator generator, UrlCache cache,
+    public UrlService(UrlMappingRepository repository, AnalyticsEventRepository analyticsEventRepository,
+                      ShortCodeGenerator generator, UrlCache cache,
                       CacheMissCoordinator cacheMissCoordinator, AppProperties properties) {
         this.repository = repository;
+        this.analyticsEventRepository = analyticsEventRepository;
         this.generator = generator;
         this.cache = cache;
         this.cacheMissCoordinator = cacheMissCoordinator;
@@ -55,6 +60,15 @@ public class UrlService {
         return cache.get(shortCode)
                 .map(originalUrl -> new ResolvedUrl(shortCode, originalUrl, true))
                 .orElseGet(() -> resolveCacheMiss(shortCode));
+    }
+
+    @Transactional(readOnly = true)
+    public UrlStatsResponse stats(String shortCode) {
+        UrlMapping mapping = repository.findByShortCode(shortCode)
+                .orElseThrow(() -> new UrlNotFoundException(shortCode));
+        Optional<String> cached = cache.get(shortCode);
+        long redirectEvents = analyticsEventRepository.countByShortCode(shortCode);
+        return new UrlStatsResponse(shortCode, mapping.getOriginalUrl(), cached.isPresent(), redirectEvents);
     }
 
     private ResolvedUrl resolveCacheMiss(String shortCode) {

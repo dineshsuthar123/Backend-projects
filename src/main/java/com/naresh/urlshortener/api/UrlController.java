@@ -40,6 +40,11 @@ public class UrlController {
         return ResponseEntity.created(location).body(response);
     }
 
+    @GetMapping("/api/v1/urls/{shortCode:[A-Za-z0-9_-]{4,32}}/stats")
+    public ResponseEntity<UrlStatsResponse> stats(@PathVariable String shortCode) {
+        return ResponseEntity.ok(urlService.stats(shortCode));
+    }
+
     @GetMapping("/{shortCode:[A-Za-z0-9_-]{4,32}}")
     public ResponseEntity<Void> redirect(@PathVariable String shortCode, HttpServletRequest request) {
         ResolvedUrl resolvedUrl = urlService.resolve(shortCode);

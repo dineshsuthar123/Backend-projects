@@ -79,3 +79,9 @@ Returns `302 Found` with `Location: originalUrl`.
 - Redis cache stampede protection for cold popular URLs.
 
 See [docs/PROJECT_TEACHING_GUIDE.md](docs/PROJECT_TEACHING_GUIDE.md) and [docs/ELITE_EXTENSIONS.md](docs/ELITE_EXTENSIONS.md).
+
+## Testing Interfaces
+
+- Browser control plane: `http://localhost:8081`
+- Postman guide: [docs/POSTMAN_TESTING.md](docs/POSTMAN_TESTING.md)
+- k6 benchmark: `k6 run benchmarks/k6/url-shortener-redirect.js`
