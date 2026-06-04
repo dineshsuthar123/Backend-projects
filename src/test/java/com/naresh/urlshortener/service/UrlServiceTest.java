@@ -24,18 +24,20 @@ class UrlServiceTest {
 
     private final UrlMappingRepository repository = mock(UrlMappingRepository.class);
     private final FakeUrlCache cache = new FakeUrlCache();
+    private final CacheMissCoordinator cacheMissCoordinator = new FakeCacheMissCoordinator();
     private final AppProperties properties = new AppProperties(
             "http://sho.rt",
             8,
             "url:",
+            null,
             new AppProperties.RateLimit(false, 120, Duration.ofMinutes(1)),
-            new AppProperties.Analytics(1000, 100, Duration.ofSeconds(2), "test")
+            new AppProperties.Analytics(1000, 100, Duration.ofSeconds(2), "test", false, "url-redirect-events")
     );
 
     @Test
     void createStoresMappingAndWarmsCache() {
         ShortCodeGenerator generator = fixedGenerator("abc12345");
-        UrlService service = new UrlService(repository, generator, cache, properties);
+        UrlService service = new UrlService(repository, generator, cache, cacheMissCoordinator, properties);
         CreateShortUrlRequest request = new CreateShortUrlRequest("https://example.com/a", null, 3600L);
 
         when(repository.existsByShortCode("abc12345")).thenReturn(false);
@@ -51,7 +53,7 @@ class UrlServiceTest {
 
     @Test
     void resolveReturnsCacheHitWithoutRepositoryLookup() {
-        UrlService service = new UrlService(repository, fixedGenerator("unused"), cache, properties);
+        UrlService service = new UrlService(repository, fixedGenerator("unused"), cache, cacheMissCoordinator, properties);
         cache.put("abc12345", "https://example.com/cached", null);
 
         ResolvedUrl resolved = service.resolve("abc12345");
@@ -63,7 +65,7 @@ class UrlServiceTest {
 
     @Test
     void resolveRejectsExpiredDatabaseMapping() {
-        UrlService service = new UrlService(repository, fixedGenerator("unused"), cache, properties);
+        UrlService service = new UrlService(repository, fixedGenerator("unused"), cache, cacheMissCoordinator, properties);
         UrlMapping expired = new UrlMapping(
                 "expired1",
                 "https://example.com/old",
@@ -97,6 +99,20 @@ class UrlServiceTest {
         @Override
         public void put(String shortCode, String originalUrl, Duration ttl) {
             values.put(shortCode, originalUrl);
+        }
+    }
+
+    private static class FakeCacheMissCoordinator implements CacheMissCoordinator {
+
+        @Override
+        public Optional<CacheLease> tryAcquire(String shortCode) {
+            return Optional.of(() -> {
+            });
+        }
+
+        @Override
+        public Optional<String> waitForCachedValue(String shortCode, UrlCache cache) {
+            return cache.get(shortCode);
         }
     }
 }

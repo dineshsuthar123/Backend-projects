@@ -6,6 +6,7 @@ import com.naresh.urlshortener.repository.AnalyticsEventRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -28,11 +29,14 @@ public class AnalyticsService {
     private final BlockingQueue<AnalyticsEvent> queue;
     private final AnalyticsEventRepository repository;
     private final AppProperties.Analytics properties;
+    private final AnalyticsPublisher analyticsPublisher;
     private final LongAdder droppedEvents = new LongAdder();
 
-    public AnalyticsService(AnalyticsEventRepository repository, AppProperties appProperties) {
+    public AnalyticsService(AnalyticsEventRepository repository, AppProperties appProperties,
+                            ObjectProvider<AnalyticsPublisher> analyticsPublisher) {
         this.repository = repository;
         this.properties = appProperties.analytics();
+        this.analyticsPublisher = analyticsPublisher.getIfAvailable();
         this.queue = new ArrayBlockingQueue<>(this.properties.queueCapacity());
     }
 
@@ -44,6 +48,10 @@ public class AnalyticsService {
                 sha256(header(request, "User-Agent"), properties.hashSalt()),
                 truncate(header(request, "Referer"), 1024)
         );
+
+        if (properties.durableEnabled() && analyticsPublisher != null && analyticsPublisher.publish(event)) {
+            return;
+        }
 
         if (!queue.offer(event)) {
             droppedEvents.increment();
@@ -59,13 +67,7 @@ public class AnalyticsService {
         }
 
         List<AnalyticsEventEntity> entities = events.stream()
-                .map(event -> new AnalyticsEventEntity(
-                        event.shortCode(),
-                        event.occurredAt(),
-                        event.ipHash(),
-                        event.userAgentHash(),
-                        event.referer()
-                ))
+                .map(AnalyticsEventMapper::toEntity)
                 .toList();
 
         try {

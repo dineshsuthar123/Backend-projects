@@ -15,11 +15,11 @@ Spring Boot 3 + Java 21 backend for a read-heavy URL shortener.
 ## Run Locally
 
 ```powershell
-docker compose up -d postgres redis
+docker compose up -d postgres redis redpanda
 mvn spring-boot:run
 ```
 
-PostgreSQL is exposed on host port `15432` and Redis on `16379` to avoid collisions with local services.
+PostgreSQL is exposed on host port `15432`, Redis on `16379`, and Redpanda on `19092` to avoid collisions with local services.
 The API runs on `http://localhost:8081`.
 
 Create a URL:
@@ -71,9 +71,11 @@ Returns `302 Found` with `Location: originalUrl`.
 
 ## Next Elite-Level Extensions
 
-- Replace fixed-window limiting with token bucket or sliding window using a Lua script.
-- Add read replicas for PostgreSQL cache misses.
-- Partition analytics by time.
-- Add Kafka or Redpanda for durable analytics ingestion.
-- Benchmark with k6 or wrk and track p50/p95/p99 latency.
-- Add cache stampede protection for cold popular URLs.
+- Redis Lua token bucket rate limiting.
+- Read-replica routing for PostgreSQL cache misses.
+- Time-partitioned analytics events.
+- Redpanda/Kafka durable analytics ingestion.
+- k6 benchmark script with p50/p95/p99 tracking.
+- Redis cache stampede protection for cold popular URLs.
+
+See [docs/PROJECT_TEACHING_GUIDE.md](docs/PROJECT_TEACHING_GUIDE.md) and [docs/ELITE_EXTENSIONS.md](docs/ELITE_EXTENSIONS.md).

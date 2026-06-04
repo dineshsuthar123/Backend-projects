@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 
 @Service
 public class UrlService {
@@ -19,12 +20,15 @@ public class UrlService {
     private final UrlMappingRepository repository;
     private final ShortCodeGenerator generator;
     private final UrlCache cache;
+    private final CacheMissCoordinator cacheMissCoordinator;
     private final AppProperties properties;
 
-    public UrlService(UrlMappingRepository repository, ShortCodeGenerator generator, UrlCache cache, AppProperties properties) {
+    public UrlService(UrlMappingRepository repository, ShortCodeGenerator generator, UrlCache cache,
+                      CacheMissCoordinator cacheMissCoordinator, AppProperties properties) {
         this.repository = repository;
         this.generator = generator;
         this.cache = cache;
+        this.cacheMissCoordinator = cacheMissCoordinator;
         this.properties = properties;
     }
 
@@ -50,7 +54,22 @@ public class UrlService {
     public ResolvedUrl resolve(String shortCode) {
         return cache.get(shortCode)
                 .map(originalUrl -> new ResolvedUrl(shortCode, originalUrl, true))
-                .orElseGet(() -> resolveFromDatabase(shortCode));
+                .orElseGet(() -> resolveCacheMiss(shortCode));
+    }
+
+    private ResolvedUrl resolveCacheMiss(String shortCode) {
+        Optional<CacheMissCoordinator.CacheLease> lease = cacheMissCoordinator.tryAcquire(shortCode);
+        if (lease.isEmpty()) {
+            Optional<String> warmedValue = cacheMissCoordinator.waitForCachedValue(shortCode, cache);
+            if (warmedValue.isPresent()) {
+                return new ResolvedUrl(shortCode, warmedValue.get(), true);
+            }
+            return resolveFromDatabase(shortCode);
+        }
+
+        try (CacheMissCoordinator.CacheLease ignored = lease.get()) {
+            return resolveFromDatabase(shortCode);
+        }
     }
 
     private ResolvedUrl resolveFromDatabase(String shortCode) {

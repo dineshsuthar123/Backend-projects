@@ -10,9 +10,15 @@ spring:
       ddl-auto: create-drop
 
 app:
+  datasource:
+    replica-urls: []
   base-url: http://localhost:8081
   code-length: 8
   cache-prefix: "url:"
+  cache:
+    stampede-lock-ttl: 5s
+    stampede-poll-delay: 80ms
+    stampede-max-wait: 400ms
   rate-limit:
     enabled: false
     requests: 120
@@ -22,3 +28,5 @@ app:
     batch-size: 100
     flush-delay: 2000
     hash-salt: test
+    durable-enabled: false
+    topic: url-redirect-events
