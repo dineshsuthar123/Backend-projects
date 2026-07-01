@@ -58,6 +58,7 @@ services:
     name: url-shortener-redis
     plan: free
     maxmemoryPolicy: allkeys-lru
+    ipAllowList: []   # empty = only services in the same Render environment
 
 databases:
   # ── PostgreSQL (persistent storage) ───────────────────────────────────────
