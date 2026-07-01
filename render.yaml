@@ -1,0 +1,67 @@
+# Render Blueprint — defines all services for the URL shortener.
+# Deploy with: render blueprint launch
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  # ── Spring Boot web service ────────────────────────────────────────────────
+  - type: web
+    name: url-shortener
+    env: docker
+    plan: free
+    region: oregon
+    healthCheckPath: /actuator/health/liveness
+    autoDeploy: true
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: render
+
+      # PostgreSQL — injected from the managed database below
+      - key: DB_HOST
+        fromDatabase:
+          name: url-shortener-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: url-shortener-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: url-shortener-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: url-shortener-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: url-shortener-db
+          property: password
+
+      # Redis — injected from the managed Redis below
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: url-shortener-redis
+          property: connectionString
+
+      # Public base URL — UPDATE THIS after your first deploy
+      # to match your actual Render URL (e.g. https://url-shortener-xxxx.onrender.com)
+      - key: APP_BASE_URL
+        value: https://url-shortener.onrender.com
+
+      # Random salt — Render generates a secure value automatically
+      - key: ANALYTICS_HASH_SALT
+        generateValue: true
+
+  # ── Redis (in-memory cache) ────────────────────────────────────────────────
+  - type: redis
+    name: url-shortener-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+
+databases:
+  # ── PostgreSQL (persistent storage) ───────────────────────────────────────
+  - name: url-shortener-db
+    plan: free
+    databaseName: url_shortener
+    user: url_shortener

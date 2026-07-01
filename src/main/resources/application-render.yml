@@ -1,0 +1,33 @@
+# Spring profile for Render.com deployment.
+# Activated by setting env var: SPRING_PROFILES_ACTIVE=render
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 5000
+      validation-timeout: 1000
+
+  data:
+    redis:
+      # Render provides a full redis://... connection string
+      url: ${REDIS_URL}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 10
+          max-idle: 5
+          min-idle: 1
+
+  # Disable Kafka auto-configuration — analytics runs in in-memory mode only
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+
+app:
+  base-url: ${APP_BASE_URL:https://url-shortener.onrender.com}
+  analytics:
+    durable-enabled: false

@@ -12,4 +12,5 @@ WORKDIR /app
 COPY --from=build /workspace/target/high-performance-url-shortener-0.0.1-SNAPSHOT.jar app.jar
 
 EXPOSE 8081
-ENTRYPOINT ["java", "-XX:+UseZGC", "-XX:MaxRAMPercentage=75", "-jar", "app.jar"]
+# Use the PORT environment variable provided by Render; fall back to 8081 locally
+ENTRYPOINT ["sh", "-c", "exec java -XX:+UseZGC -XX:MaxRAMPercentage=75 -jar app.jar --server.port=${PORT:-8081}"]
