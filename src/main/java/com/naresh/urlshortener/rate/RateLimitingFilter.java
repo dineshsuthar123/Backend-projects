@@ -10,16 +10,20 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.core.annotation.Order;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
 @Component
+@Order(0)
 public class RateLimitingFilter extends OncePerRequestFilter {
 
     private final RateLimiter rateLimiter;
     private final ObjectMapper objectMapper;
     private final UrlShortenerMetrics metrics;
+    @org.springframework.beans.factory.annotation.Value("${app.security.enabled:false}")
+    private boolean production;
 
     public RateLimitingFilter(RateLimiter rateLimiter, ObjectMapper objectMapper, UrlShortenerMetrics metrics) {
         this.rateLimiter = rateLimiter;
@@ -37,6 +41,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         RateLimitResult result = rateLimiter.check(clientKey(request));
+        if (production && result.allowed()) { result = rateLimiter.check("global-public-traffic"); }
         response.setHeader("X-RateLimit-Remaining", Long.toString(result.remaining()));
 
         if (result.allowed()) {
@@ -52,10 +57,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     }
 
     private static String clientKey(HttpServletRequest request) {
-        String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (forwardedFor != null && !forwardedFor.isBlank()) {
-            return forwardedFor.split(",", 2)[0].trim();
-        }
+        // Tomcat resolves this only after checking the explicitly trusted proxy address.
         return request.getRemoteAddr();
     }
 }

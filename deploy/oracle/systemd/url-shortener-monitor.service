@@ -1,0 +1,7 @@
+[Unit]
+Description=URL shortener health and disk check
+After=docker.service
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/url-shortener/deploy/oracle
+ExecStart=/bin/bash /opt/url-shortener/deploy/oracle/health.sh

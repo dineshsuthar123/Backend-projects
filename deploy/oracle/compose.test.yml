@@ -1,0 +1,4 @@
+# Local acceptance only. No public database/cache ports, even in tests.
+services:
+  shortener-app:
+    ports: ["127.0.0.1:18081:8081"]

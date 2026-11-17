@@ -1,6 +1,6 @@
 import http from "k6/http";
 import { check, sleep } from "k6";
-import { baseUrl, syntheticIp, targetUrl, uniqueAlias } from "./common.js";
+import { baseUrl, managementHeaders, targetUrl, uniqueAlias } from "./common.js";
 
 export const options = {
   scenarios: {
@@ -32,7 +32,7 @@ export default function () {
     `${baseUrl}/api/v1/urls`,
     JSON.stringify(payload),
     {
-      headers: { "Content-Type": "application/json", "X-Forwarded-For": syntheticIp() },
+      headers: { "Content-Type": "application/json", ...managementHeaders() },
       tags: { name: "create_short_url" },
     }
   );

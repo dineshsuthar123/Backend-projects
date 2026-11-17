@@ -1,0 +1,66 @@
+server:
+  shutdown: graceful
+  forward-headers-strategy: native
+  max-http-request-header-size: 8KB
+  tomcat:
+    threads:
+      max: 32
+      min-spare: 2
+    max-connections: 128
+    accept-count: 32
+    connection-timeout: 5s
+    max-http-form-post-size: 8KB
+    max-swallow-size: 8KB
+    remoteip:
+      internal-proxies: ${TRUSTED_PROXY_REGEX:172\.30\.10\.2}
+spring:
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+  lifecycle:
+    timeout-per-shutdown-phase: 25s
+  datasource:
+    url: jdbc:postgresql://shortener-db:5432/${DB_NAME:shortener}
+    username: shortener_app
+    password: ${DB_APP_PASSWORD}
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 3000
+      validation-timeout: 1000
+  flyway:
+    url: jdbc:postgresql://shortener-db:5432/${DB_NAME:shortener}
+    user: shortener_migration
+    password: ${DB_MIGRATION_PASSWORD}
+  data:
+    redis:
+      host: shortener-redis
+      port: 6379
+      timeout: 500ms
+  servlet:
+    multipart:
+      enabled: false
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      group:
+        readiness:
+          include: readinessState,db
+app:
+  base-url: https://${APP_DOMAIN}
+  security:
+    enabled: true
+    management-key: ${MANAGEMENT_API_KEY}
+    demo-enabled: true
+    demo-hosts: example.com,spring.io
+    demo-daily-limit: 100
+    demo-ip-daily-limit: 10
+    max-mappings: 10000
+  analytics:
+    durable-enabled: true
+    queue-capacity: 100
+    hash-salt: ${ANALYTICS_HASH_SALT}

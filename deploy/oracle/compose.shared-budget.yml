@@ -1,0 +1,4 @@
+# Use only when sharing with SupplyPrint. Total CPU caps with its reviewed override: 2 OCPUs.
+services:
+  shortener-app: {cpus: 0.6}
+  shortener-db: {cpus: 0.2}

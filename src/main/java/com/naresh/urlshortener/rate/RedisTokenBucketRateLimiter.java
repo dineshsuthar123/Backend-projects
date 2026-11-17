@@ -54,6 +54,11 @@ class RedisTokenBucketRateLimiter implements RateLimiter {
 
     private final StringRedisTemplate redis;
     private final AppProperties.RateLimit properties;
+    @org.springframework.beans.factory.annotation.Value("${app.security.enabled:false}")
+    private boolean production;
+    private long fallbackWindow;
+    private int fallbackUsed;
+    private final java.util.concurrent.atomic.AtomicLong lastWarning = new java.util.concurrent.atomic.AtomicLong();
 
     RedisTokenBucketRateLimiter(StringRedisTemplate redis, AppProperties appProperties) {
         this.redis = redis;
@@ -89,14 +94,25 @@ class RedisTokenBucketRateLimiter implements RateLimiter {
                             Long.toString(ttlMilliseconds).getBytes(StandardCharsets.UTF_8)
                     ));
             if (result == null || result.size() < 3) {
-                return new RateLimitResult(true, properties.requests(), 0);
+                return failureFallback();
             }
             boolean allowed = result.get(0) == 1;
             long retryAfterSeconds = Math.max(1, (long) Math.ceil(result.get(2) / 1000.0));
             return new RateLimitResult(allowed, result.get(1), allowed ? 0 : retryAfterSeconds);
         } catch (RuntimeException ex) {
-            log.warn("Rate limiter failed for key={}; allowing request", key, ex);
-            return new RateLimitResult(true, properties.requests(), 0);
+            long previous = lastWarning.get();
+            if (now - previous > 60000 && lastWarning.compareAndSet(previous, now)) {
+                log.warn("Redis rate limiter unavailable; using bounded local production fallback");
+            }
+            return failureFallback();
         }
+    }
+
+    private synchronized RateLimitResult failureFallback() {
+        if (!production) return new RateLimitResult(true, properties.requests(), 0);
+        long window = System.currentTimeMillis() / 60000;
+        if (window != fallbackWindow) { fallbackWindow = window; fallbackUsed = 0; }
+        boolean allowed = ++fallbackUsed <= properties.requests();
+        return new RateLimitResult(allowed, Math.max(0, properties.requests() - fallbackUsed), allowed ? 0 : 60);
     }
 }

@@ -43,12 +43,20 @@ public class UrlService {
 
     @Transactional
     public CreateShortUrlResponse create(CreateShortUrlRequest request) {
+        UrlPolicy.validate(request.originalUrl());
+        UrlPolicy.validateAlias(request.customAlias());
         Instant now = Instant.now();
         Instant expiresAt = request.ttlSeconds() == null ? null : now.plusSeconds(request.ttlSeconds());
         String shortCode = chooseShortCode(request.customAlias());
 
         UrlMapping saved = repository.save(new UrlMapping(shortCode, request.originalUrl(), now, expiresAt));
-        cache.put(shortCode, saved.getOriginalUrl(), ttlFrom(now, saved.getExpiresAt()));
+        // A cache value must not become visible before the canonical transaction commits.
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override public void afterCommit() { cache.put(shortCode, saved.getOriginalUrl(), ttlFrom(Instant.now(), saved.getExpiresAt())); }
+                    });
+        } else { cache.put(shortCode, saved.getOriginalUrl(), ttlFrom(now, saved.getExpiresAt())); }
         metrics.recordCreate();
 
         return new CreateShortUrlResponse(

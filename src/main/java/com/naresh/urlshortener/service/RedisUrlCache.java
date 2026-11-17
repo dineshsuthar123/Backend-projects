@@ -35,7 +35,8 @@ class RedisUrlCache implements UrlCache {
     @Override
     public void put(String shortCode, String originalUrl, Duration ttl) {
         try {
-            if (ttl == null || ttl.isZero() || ttl.isNegative()) {
+            if (ttl != null && (ttl.isZero() || ttl.isNegative() || ttl.toMillis() < 1)) { return; }
+            if (ttl == null) {
                 redis.opsForValue().set(key(shortCode), originalUrl);
             } else {
                 redis.opsForValue().set(key(shortCode), originalUrl, ttl);

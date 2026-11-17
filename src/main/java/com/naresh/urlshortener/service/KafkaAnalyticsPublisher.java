@@ -8,6 +8,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
+@org.springframework.context.annotation.Profile("!oracle")
 @ConditionalOnProperty(prefix = "app.analytics", name = "durable-enabled", havingValue = "true")
 class KafkaAnalyticsPublisher implements AnalyticsPublisher {
 

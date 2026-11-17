@@ -1,0 +1,19 @@
+# REVIEWED PLAN ONLY. Apply from SupplyPrint after native combined-load validation.
+# SupplyPrint's own volume, database, credentials, state and provisioning owner remain unchanged.
+services:
+  proxy:
+    profiles: [standalone-proxy]
+  api:
+    cpus: 0.7
+    ports: !reset []
+    networks: !override
+      database:
+      portfolio-edge:
+        ipv4_address: 172.30.10.4
+        aliases: [supplyprint-api]
+  db:
+    cpus: 0.3
+networks:
+  portfolio-edge:
+    external: true
+    name: portfolio-edge

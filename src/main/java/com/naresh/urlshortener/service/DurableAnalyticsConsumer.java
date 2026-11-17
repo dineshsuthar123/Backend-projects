@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 @Component
+@org.springframework.context.annotation.Profile("!oracle")
 @ConditionalOnProperty(prefix = "app.analytics", name = "durable-enabled", havingValue = "true")
 class DurableAnalyticsConsumer {
 

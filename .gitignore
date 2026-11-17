@@ -4,3 +4,19 @@ target/
 *.iml
 *.log
 
+# Local credentials, infrastructure identifiers and database backups
+.env
+.env.*
+!.env.example
+deploy/prod.env
+deploy/oracle/state/
+deploy/oracle/backups/
+deploy/oracle/reports/
+*.pem
+*.key
+__pycache__/
+.venv/
+node_modules/
+test-results/
+playwright-report/
+

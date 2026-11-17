@@ -29,6 +29,7 @@
           <button class="ghost-button" id="loadExample">Load example</button>
         </div>
 
+        <p class="hint" id="creationPolicy">Create a short link with an optional alias and expiration.</p>
         <label class="field">
           <span>Original URL</span>
           <input id="originalUrl" type="url" value="https://spring.io/projects/spring-boot" autocomplete="off">
@@ -71,9 +72,7 @@
         <div class="button-grid">
           <button class="secondary-button" id="redirectButton">Test Redirect</button>
           <button class="secondary-button" id="statsButton">Fetch Stats</button>
-          <button class="secondary-button" id="burstButton">Rate Limit Burst</button>
           <button class="secondary-button" id="cacheButton">Warm Cache</button>
-          <button class="secondary-button" id="evictButton">Evict Cache</button>
         </div>
 
         <div class="meter-grid">
@@ -99,18 +98,15 @@
         <h2>Runtime Checks</h2>
         <div class="runtime-list">
           <div><span>API</span><strong id="apiState">Checking</strong></div>
-          <div><span>PostgreSQL</span><strong>15432</strong></div>
-          <div><span>Redis</span><strong>16379</strong></div>
-          <div><span>Redpanda</span><strong>19092</strong></div>
+          <div><span>Links</span><strong>Persistent</strong></div>
+          <div><span>Statistics</span><strong>Available per link</strong></div>
         </div>
       </div>
 
       <div class="panel compact">
-        <p class="eyebrow">Benchmark</p>
-        <h2>k6 Command</h2>
-        <pre><code>k6 run benchmarks/k6/redirect-cache-hit.js
-k6 run benchmarks/k6/cache-stampede.js</code></pre>
-        <p class="hint">Use the full suite in README when you want p50, p95, p99, rate-limit, TTL, and stress proof.</p>
+        <p class="eyebrow">Tips</p>
+        <h2>Try Your Link</h2>
+        <p class="hint">Create a link, open its redirect, then fetch statistics. Set a short TTL to try expiration. Keep your link to share it later.</p>
       </div>
 
       <div class="panel compact">

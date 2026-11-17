@@ -14,6 +14,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RateLimitingFilterTest {
 
     @Test
+    void forgedForwardedHeadersDoNotChangeClientIdentity() throws Exception {
+        java.util.List<String> identities = new java.util.ArrayList<>();
+        RateLimitingFilter filter = filter(key -> { identities.add(key); return new RateLimitResult(true, 7, 0); });
+        for (String spoofed : java.util.List.of("1.1.1.1", "2.2.2.2")) {
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", "/abc12345");
+            request.setRemoteAddr("192.0.2.10");
+            request.addHeader("X-Forwarded-For", spoofed);
+            filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+        }
+        assertThat(identities).containsExactly("192.0.2.10", "192.0.2.10");
+    }
+
+    @Test
     void allowedRequestContinuesFilterChainAndWritesRemainingHeader() throws Exception {
         RateLimitingFilter filter = filter(key -> new RateLimitResult(true, 7, 0));
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/abc12345");

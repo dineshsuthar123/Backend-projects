@@ -1,0 +1,85 @@
+name: url-shortener-oracle
+x-defaults: &defaults
+  restart: unless-stopped
+  security_opt: ["no-new-privileges:true"]
+  pids_limit: 192
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "3"}
+services:
+  shortener-app:
+    <<: *defaults
+    image: ${APP_IMAGE:?Set an immutable release image}
+    platform: ${PLATFORM:-linux/arm64}
+    read_only: true
+    cap_drop: [ALL]
+    tmpfs: ["/tmp:size=64m,noexec,nosuid"]
+    mem_limit: 1024m
+    cpus: 0.75
+    stop_grace_period: 35s
+    environment:
+      SPRING_PROFILES_ACTIVE: oracle
+      APP_DOMAIN: ${APP_DOMAIN:?Set the public DNS hostname}
+      DB_NAME: ${DB_NAME:-shortener}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?Generate private credentials}
+      DB_MIGRATION_PASSWORD: ${DB_MIGRATION_PASSWORD:?Required}
+      MANAGEMENT_API_KEY: ${MANAGEMENT_API_KEY:?Required}
+      ANALYTICS_HASH_SALT: ${ANALYTICS_HASH_SALT:?Required}
+    depends_on:
+      shortener-db: {condition: service_healthy}
+      shortener-redis: {condition: service_healthy}
+    networks:
+      database:
+      cache:
+      portfolio-edge:
+        ipv4_address: 172.30.10.3
+        aliases: [shortener-app]
+  shortener-db:
+    <<: *defaults
+    image: postgres:16-alpine@sha256:81e77a4833487b8132fe4b00bedd39dc3f74b8641e387f19312a48f7de218c2e
+    platform: ${PLATFORM:-linux/arm64}
+    mem_limit: 512m
+    cpus: 0.25
+    shm_size: 128m
+    stop_grace_period: 60s
+    environment:
+      POSTGRES_DB: shortener
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_ADMIN_PASSWORD:?Required}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD}
+      DB_MIGRATION_PASSWORD: ${DB_MIGRATION_PASSWORD}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    command: ["postgres", "-c", "max_connections=25", "-c", "shared_buffers=64MB", "-c", "work_mem=2MB", "-c", "maintenance_work_mem=32MB", "-c", "password_encryption=scram-sha-256", "-c", "log_statement=none"]
+    volumes:
+      - shortener-pgdata:/var/lib/postgresql/data
+      - ./postgres-init.sh:/docker-entrypoint-initdb.d/10-shortener.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d shortener"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [database]
+  shortener-redis:
+    <<: *defaults
+    image: redis:7-alpine@sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe
+    platform: ${PLATFORM:-linux/arm64}
+    mem_limit: 128m
+    cpus: 0.10
+    read_only: true
+    cap_drop: [ALL]
+    user: redis
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [cache]
+volumes:
+  shortener-pgdata:
+networks:
+  database: {internal: true}
+  cache: {internal: true}
+  portfolio-edge:
+    external: true
+    name: ${EDGE_NETWORK:-portfolio-edge}

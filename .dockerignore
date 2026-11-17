@@ -1,0 +1,11 @@
+target
+.git
+.github
+.env*
+deploy/prod.env
+deploy/oracle/state
+deploy/oracle/backups
+deploy/oracle/reports
+**/*.pem
+**/*.key
+**/__pycache__

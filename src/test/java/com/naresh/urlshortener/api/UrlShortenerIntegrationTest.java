@@ -33,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 @Testcontainers(disabledWithoutDocker = true)
+@org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class UrlShortenerIntegrationTest {
 
@@ -59,7 +60,16 @@ class UrlShortenerIntegrationTest {
     @Autowired
     ObjectMapper objectMapper;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = testRestTemplate();
+
+    private static RestTemplate testRestTemplate() {
+        RestTemplate client = new RestTemplate();
+        client.setErrorHandler(new org.springframework.web.client.ResponseErrorHandler() {
+            @Override public boolean hasError(org.springframework.http.client.ClientHttpResponse response) { return false; }
+            @Override public void handleError(org.springframework.http.client.ClientHttpResponse response) { }
+        });
+        return client;
+    }
     private final HttpClient httpClient = HttpClient.newBuilder()
             .followRedirects(HttpClient.Redirect.NEVER)
             .connectTimeout(Duration.ofSeconds(3))
@@ -67,6 +77,9 @@ class UrlShortenerIntegrationTest {
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
+        // This fixture explicitly simulates a trusted loopback proxy. Production trusts only Caddy.
+        registry.add("server.forward-headers-strategy", () -> "native");
+        registry.add("server.tomcat.remoteip.internal-proxies", () -> "127\\.0\\.0\\.1|::1|0:0:0:0:0:0:0:1");
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);

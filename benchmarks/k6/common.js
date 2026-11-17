@@ -4,6 +4,10 @@ import { check } from "k6";
 export const baseUrl = __ENV.BASE_URL || "http://localhost:8081";
 export const targetUrl = __ENV.TARGET_URL || "https://spring.io/projects/spring-boot";
 
+export function managementHeaders() {
+  return __ENV.MANAGEMENT_API_KEY ? { "X-Management-Key": __ENV.MANAGEMENT_API_KEY } : {};
+}
+
 export function syntheticIp() {
   const vu = typeof __VU === "number" ? __VU : 0;
   const iter = typeof __ITER === "number" ? __ITER : 0;
@@ -26,7 +30,7 @@ export function createUrl(alias, ttlSeconds, originalUrl = targetUrl) {
     body.ttlSeconds = ttlSeconds;
   }
   const response = http.post(`${baseUrl}/api/v1/urls`, JSON.stringify(body), {
-    headers: { "Content-Type": "application/json", "X-Forwarded-For": syntheticIp() },
+    headers: { "Content-Type": "application/json", ...managementHeaders() },
     tags: { name: "create_short_url" },
   });
   check(response, {
@@ -37,7 +41,7 @@ export function createUrl(alias, ttlSeconds, originalUrl = targetUrl) {
 
 export function evictCache(shortCode) {
   return http.del(`${baseUrl}/api/v1/urls/${shortCode}/cache`, null, {
-    headers: { "X-Forwarded-For": syntheticIp() },
+    headers: managementHeaders(),
     tags: { name: "evict_cache" },
   });
 }

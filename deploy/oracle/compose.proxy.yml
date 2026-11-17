@@ -1,0 +1,33 @@
+name: portfolio-proxy
+services:
+  caddy:
+    image: caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
+    platform: ${PLATFORM:-linux/arm64}
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    mem_limit: 128m
+    cpus: 0.15
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN}
+      SITE_ADDRESS: ${APP_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?Set the certificate contact email}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./proxy-sites:/etc/caddy/sites:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+    networks:
+      portfolio-edge:
+        ipv4_address: 172.30.10.2
+volumes:
+  caddy-data:
+  caddy-config:
+networks:
+  portfolio-edge:
+    external: true
+    name: ${EDGE_NETWORK:-portfolio-edge}

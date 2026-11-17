@@ -35,7 +35,7 @@ public class RequestCorrelationFilter extends OncePerRequestFilter {
 
     private static String requestId(HttpServletRequest request) {
         String supplied = request.getHeader(REQUEST_ID_HEADER);
-        if (supplied != null && !supplied.isBlank() && supplied.length() <= 128) {
+        if (supplied != null && supplied.matches("[A-Za-z0-9._-]{1,128}")) {
             return supplied;
         }
         return UUID.randomUUID().toString();

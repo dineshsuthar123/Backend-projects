@@ -1,0 +1,2 @@
+services:
+  caddy: {cpus: 0.1}

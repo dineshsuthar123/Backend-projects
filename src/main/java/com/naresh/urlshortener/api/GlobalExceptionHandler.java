@@ -19,6 +19,29 @@ class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    ResponseEntity<ErrorResponse> status(org.springframework.web.server.ResponseStatusException ex) {
+        return ResponseEntity.status(ex.getStatusCode()).body(ErrorResponse.of(ex.getStatusCode().value(),
+                "REQUEST_REJECTED", ex.getReason()));
+    }
+
+    @ExceptionHandler({org.springframework.http.converter.HttpMessageNotReadableException.class,
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class})
+    ResponseEntity<ErrorResponse> malformed(Exception ex) {
+        return ResponseEntity.badRequest().body(ErrorResponse.of(400, "INVALID_REQUEST", "Malformed request"));
+    }
+
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    ResponseEntity<ErrorResponse> conflict(Exception ex) {
+        return ResponseEntity.status(409).body(ErrorResponse.of(409, "CONFLICT", "The requested alias is unavailable"));
+    }
+
+    @ExceptionHandler(org.springframework.dao.DataAccessException.class)
+    ResponseEntity<ErrorResponse> databaseUnavailable(Exception ex) {
+        return ResponseEntity.status(503).header("Retry-After", "5")
+                .body(ErrorResponse.of(503, "STORAGE_UNAVAILABLE", "Persistent storage is temporarily unavailable"));
+    }
+
     @ExceptionHandler(UrlNotFoundException.class)
     ResponseEntity<ErrorResponse> notFound(UrlNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)

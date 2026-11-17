@@ -1,179 +1,130 @@
-const state = {
-  shortCode: "",
-  shortUrl: "",
-};
-
+const state = { shortCode: "", shortUrl: "", config: null };
 const $ = (id) => document.getElementById(id);
 
+function element(tag, text, className) {
+  const node = document.createElement(tag);
+  if (text !== undefined) node.textContent = text;
+  if (className) node.className = className;
+  return node;
+}
+
 function logEvent(title, detail = "") {
-  const item = document.createElement("li");
-  item.innerHTML = `<strong>${title}</strong>${detail ? ` - ${detail}` : ""}`;
+  const item = element("li");
+  item.append(element("strong", title), document.createTextNode(detail ? ` - ${detail}` : ""));
   $("eventLog").prepend(item);
-  while ($("eventLog").children.length > 12) {
-    $("eventLog").lastElementChild.remove();
-  }
+  while ($("eventLog").children.length > 12) $("eventLog").lastElementChild.remove();
 }
 
 async function request(path, options = {}) {
   const response = await fetch(path, {
-    redirect: "manual",
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-    ...options,
+    ...options, redirect: "manual",
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
   });
-
   const text = await response.text();
   let body = null;
-  if (text) {
-    try {
-      body = JSON.parse(text);
-    } catch {
-      body = text;
-    }
-  }
+  if (text) { try { body = JSON.parse(text); } catch { body = text; } }
   return { response, body };
 }
 
-function setBusy(button, busy) {
-  button.disabled = busy;
-}
-
-function setHealth(ok) {
+async function checkHealth() {
+  let ok = false;
+  try { ok = (await request("/actuator/health/readiness")).response.ok; } catch { /* display unavailable */ }
   $("healthDot").className = `status-dot ${ok ? "ok" : "bad"}`;
   $("healthLabel").textContent = ok ? "Service healthy" : "Service unavailable";
   $("apiState").textContent = ok ? "Healthy" : "Down";
 }
 
-async function checkHealth() {
-  try {
-    const { response } = await request("/actuator/health", { headers: {} });
-    setHealth(response.ok);
-  } catch {
-    setHealth(false);
-  }
-}
-
 async function createShortUrl() {
   const button = $("createButton");
-  setBusy(button, true);
+  button.disabled = true;
   try {
-    const payload = {
-      originalUrl: $("originalUrl").value.trim(),
-    };
+    if (!state.config) throw new Error("Service configuration is unavailable. Reload to try again.");
+    const payload = { originalUrl: $("originalUrl").value.trim() };
     const alias = $("customAlias").value.trim();
     const ttl = $("ttlSeconds").value.trim();
     if (alias) payload.customAlias = alias;
     if (ttl) payload.ttlSeconds = Number(ttl);
-
-    const { response, body } = await request("/api/v1/urls", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      throw new Error(body?.message || `Create failed with ${response.status}`);
-    }
-
+    const path = state.config.demo ? "/api/v1/demo/urls" : "/api/v1/urls";
+    const { response, body } = await request(path, { method: "POST", body: JSON.stringify(payload) });
+    if (!response.ok) throw new Error(body?.message || `Create failed with ${response.status}`);
+    if (!/^[A-Za-z0-9_-]{4,32}$/.test(body.shortCode)) throw new Error("Invalid short code returned");
     state.shortCode = body.shortCode;
-    state.shortUrl = body.shortUrl;
+    state.shortUrl = new URL(`/${body.shortCode}`, window.location.origin).href;
     $("shortCode").value = body.shortCode;
-    $("createResult").innerHTML = `
-      <div class="muted">Short code</div>
-      <div class="short-url">
-        <a href="/${body.shortCode}" target="_blank" rel="noreferrer">${body.shortUrl}</a>
-        <button class="ghost-button" id="copyShortUrl">Copy</button>
-      </div>
-      <p class="hint">Original: ${body.originalUrl}</p>
-    `;
-    $("copyShortUrl").addEventListener("click", () => navigator.clipboard.writeText(body.shortUrl));
+    const link = element("a", body.shortUrl);
+    link.href = state.shortUrl;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    const copy = element("button", "Copy", "ghost-button");
+    copy.id = "copyShortUrl";
+    copy.addEventListener("click", () => navigator.clipboard.writeText(state.shortUrl)
+      .catch(() => logEvent("Copy unavailable", "Select and copy the link manually")));
+    const row = element("div", undefined, "short-url");
+    row.append(link, copy);
+    $("createResult").replaceChildren(element("div", "Short code", "muted"), row,
+      element("p", `Original: ${body.originalUrl}`, "hint"));
     logEvent("Created", body.shortCode);
   } catch (error) {
-    $("createResult").innerHTML = `<span class="muted">${error.message}</span>`;
+    $("createResult").replaceChildren(element("span", error.message, "muted"));
     logEvent("Create failed", error.message);
-  } finally {
-    setBusy(button, false);
-  }
+  } finally { button.disabled = false; }
 }
 
-async function testRedirect() {
+function shortCode() {
   const code = $("shortCode").value.trim();
-  if (!code) return;
-  try {
-    window.open(`/${code}`, "_blank", "noopener,noreferrer");
-    $("lastStatus").textContent = "opened";
-    logEvent("Redirect opened", "Use Postman or curl to inspect the exact 302 Location header");
-  } catch (error) {
-    $("lastStatus").textContent = "error";
-    logEvent("Redirect failed", error.message);
+  if (!/^[A-Za-z0-9_-]{4,32}$/.test(code)) {
+    logEvent("Invalid code", "Use 4 to 32 letters, numbers, underscores or hyphens");
+    return null;
   }
+  return code;
+}
+
+function testRedirect() {
+  const code = shortCode();
+  if (!code) return;
+  window.open(`/${encodeURIComponent(code)}`, "_blank", "noopener,noreferrer");
+  $("lastStatus").textContent = "opened";
+  logEvent("Redirect opened", "The destination opens in a new tab");
 }
 
 async function fetchStats() {
-  const code = $("shortCode").value.trim();
+  const code = shortCode();
   if (!code) return;
   try {
-    const { response, body } = await request(`/api/v1/urls/${code}/stats`, { headers: {} });
+    const { response, body } = await request(`/api/v1/urls/${encodeURIComponent(code)}/stats`);
     if (!response.ok) throw new Error(body?.message || `Stats failed with ${response.status}`);
     $("cacheState").textContent = body.cacheHit ? "Warm" : "Cold";
     $("eventCount").textContent = body.redirectEvents;
     logEvent("Stats fetched", `${body.redirectEvents} events, cache ${body.cacheHit ? "warm" : "cold"}`);
-  } catch (error) {
-    logEvent("Stats failed", error.message);
-  }
+  } catch (error) { logEvent("Stats failed", error.message); }
 }
 
-async function burstRateLimit() {
-  const code = $("shortCode").value.trim();
-  if (!code) return;
-  const total = 140;
-  const requests = Array.from({ length: total }, () => fetch(`/${code}`, { redirect: "manual" }));
-  const responses = await Promise.allSettled(requests);
-  const limited = responses.filter((r) => r.status === "fulfilled" && r.value.status === 429).length;
-  const allowed = responses.filter((r) => r.status === "fulfilled" && (r.value.status === 302 || r.value.type === "opaqueredirect")).length;
-  $("lastStatus").textContent = `${allowed}/${limited}`;
-  logEvent("Burst complete", `${allowed} allowed redirects, ${limited} rate limited`);
-}
+$("createButton").addEventListener("click", createShortUrl);
+$("clearButton").addEventListener("click", () => {
+  $("createResult").replaceChildren(element("span", "Create a URL to see the generated short code, redirect target, and next actions.", "muted"));
+});
+$("loadExample").addEventListener("click", () => {
+  $("originalUrl").value = "https://spring.io/projects/spring-boot";
+  $("customAlias").value = "";
+  $("ttlSeconds").value = "";
+});
+$("redirectButton").addEventListener("click", testRedirect);
+$("statsButton").addEventListener("click", fetchStats);
+$("cacheButton").addEventListener("click", testRedirect);
 
-async function warmCache() {
-  await testRedirect();
-  await fetchStats();
-}
-
-async function evictCache() {
-  const code = $("shortCode").value.trim();
-  if (!code) return;
+async function initialize() {
+  $("createButton").disabled = true;
   try {
-    const { response, body } = await request(`/api/v1/urls/${code}/cache`, {
-      method: "DELETE",
-      headers: {},
-    });
-    if (!response.ok) throw new Error(body?.message || `Evict failed with ${response.status}`);
-    $("cacheState").textContent = "Cold";
-    logEvent("Cache evicted", code);
-  } catch (error) {
-    logEvent("Evict failed", error.message);
-  }
+    const { response, body } = await request("/api/v1/config");
+    if (!response.ok) throw new Error("Service configuration unavailable");
+    state.config = body;
+    if (body.demo) {
+      $("creationPolicy").textContent = `Public demo: destinations on ${body.demoHosts.join(", ")}. Up to 10 links per visitor daily; links expire within one day. Analytics show the last 7 days.`;
+      $("ttlSeconds").max = "86400";
+      $("createButton").disabled = !body.demoEnabled;
+    } else { $("createButton").disabled = false; }
+  } catch (error) { logEvent("Configuration unavailable", error.message); }
 }
-
-function wire() {
-  $("createButton").addEventListener("click", createShortUrl);
-  $("clearButton").addEventListener("click", () => {
-    $("createResult").innerHTML = '<span class="muted">Create a URL to see the generated short code, redirect target, and next actions.</span>';
-  });
-  $("loadExample").addEventListener("click", () => {
-    $("originalUrl").value = "https://spring.io/projects/spring-boot";
-    $("customAlias").value = "";
-    $("ttlSeconds").value = "";
-  });
-  $("redirectButton").addEventListener("click", testRedirect);
-  $("statsButton").addEventListener("click", fetchStats);
-  $("burstButton").addEventListener("click", burstRateLimit);
-  $("cacheButton").addEventListener("click", warmCache);
-  $("evictButton").addEventListener("click", evictCache);
-}
-
-wire();
+initialize();
 checkHealth();
-setInterval(checkHealth, 10_000);
+setInterval(checkHealth, 30_000);

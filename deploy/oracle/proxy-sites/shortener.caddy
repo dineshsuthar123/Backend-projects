@@ -1,0 +1,23 @@
+{$SITE_ADDRESS} {
+    encode zstd gzip
+    request_body {
+        max_size 8KB
+    }
+    @private {
+        path /actuator/*
+        not path /actuator/health /actuator/health/readiness /actuator/health/liveness
+    }
+    respond @private 404
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options nosniff
+        Referrer-Policy no-referrer
+        -Server
+    }
+    reverse_proxy shortener-app:8081 {
+        header_up X-Forwarded-For {remote_host}
+        header_up -Forwarded
+        header_up -X-Real-IP
+        header_up Host {$APP_DOMAIN}
+    }
+}

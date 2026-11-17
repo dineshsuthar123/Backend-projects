@@ -1,0 +1,9 @@
+[Unit]
+Description=URL shortener PostgreSQL backup
+Requires=docker.service
+After=docker.service
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/url-shortener/deploy/oracle
+ExecStart=/bin/bash /opt/url-shortener/deploy/oracle/backup.sh
+UMask=0077
