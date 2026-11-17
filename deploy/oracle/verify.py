@@ -11,6 +11,7 @@ import subprocess
 import time
 import urllib.error
 import urllib.request
+import urllib.parse
 import uuid
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -32,6 +33,10 @@ def main():
     p.add_argument("--env-file", type=pathlib.Path, default=HERE / ".env")
     p.add_argument("--local-operations", action="store_true")
     args = p.parse_args()
+    base = urllib.parse.urlsplit(args.base_url)
+    local_endpoint = base.hostname in {"localhost", "127.0.0.1", "::1"}
+    if base.scheme != "https" and not (local_endpoint and base.scheme == "http"):
+        raise SystemExit("Public acceptance requires HTTPS; HTTP is allowed only for local validation")
     env = os.environ | load_env(args.env_file)
     opener = urllib.request.build_opener(NoRedirect())
     results = []
@@ -159,7 +164,8 @@ def main():
         passed("non-root runtime, bounded memory and automatic container restart policy")
         result = {"tests": results, "local_only": True, "app_stats": samples, "backup_sha256": hashlib.sha256(backup).hexdigest()}
     else:
-        result = {"tests": results, "local_only": False, "certificate_validation": "urllib HTTPS default trust store"}
+        result = {"tests": results, "local_only": local_endpoint,
+            "certificate_validation": "urllib HTTPS default trust store" if base.scheme == "https" else "not tested: local HTTP endpoint"}
     reports = HERE / "reports"
     reports.mkdir(exist_ok=True)
     (reports / "acceptance.json").write_text(json.dumps(result, indent=2) + "\n")
