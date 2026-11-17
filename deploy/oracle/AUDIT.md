@@ -37,6 +37,8 @@ At commit `a8c4bfd`, Java 21.0.9 / Maven 3.9.16:
 
 The original Spring Boot 3.3.6 dependency baseline is replaced with 3.5.16, plus explicit public patch versions for Jackson, Tomcat, Netty, PostgreSQL JDBC and Kafka compression libraries. The production OS image and Java CycloneDX SBOM are scanned separately. The SBOM scan avoids an unnecessary large Java fingerprint-database download and still scans the resolved Maven package versions. An empty scanner result is not accepted as evidence of a successful Java scan.
 
+Base images are pinned by manifest digest and dependency versions are fixed. Maven uses a fixed archive output timestamp so identical source/toolchain/dependencies produce the same application JAR; the immutable commit-tagged container remains the release identity. Container build attestations may include build-run metadata and are not claimed to have identical digests across builders.
+
 Two scanner findings against `spring-webmvc:6.2.19` are **not applicable to this application's executed features**, based on the publisher's stated conditions:
 
 * [CVE-2026-47884](https://spring.io/security/cve-2026-47884/): requires XSLT view rendering under a wildcard mapping. There is no `XsltView`, XSLT resolver, XML view template or wildcard view-rendering controller here; controllers return JSON or an explicit redirect response.

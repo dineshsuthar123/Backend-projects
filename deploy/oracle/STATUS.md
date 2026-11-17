@@ -18,6 +18,8 @@ Local verification has passed 74 Java tests with no skips, 10 full-stack accepta
 
 Dependency-patched Java verification also passes all 74 tests. The scanned Java SBOM contains 105 components; the gate reports no applicable HIGH/CRITICAL finding, with only the two exact, expiring Spring applicability statements described in AUDIT.md. The pinned Ubuntu runtime OS scan contains a real OS result and no HIGH/CRITICAL finding. These scans are time-specific evidence, not a promise that future vulnerabilities will not be disclosed.
 
+[GitHub CI run 44147267327](https://github.com/dineshsuthar123/Backend-projects/actions/runs/44147267327) passed for implementation commit `7aa41ae`: all 74 tests, the complete stack, two browser tests, the **actual Linux backup/restore/update/explicit rollback and automatic failed-release recovery scripts**, ARM64 build/JVM, and both security gates. No paid artifacts or deployment credentials were used. The [branch's latest verification runs](https://github.com/dineshsuthar123/Backend-projects/actions?query=branch%3Adeploy%2Foracle-always-free) record subsequent build/documentation refinements.
+
 ## Exact blocked step and retry
 
 The next infrastructure step is the existing owner's **single A1 VM launch**, not network creation. Use the read-only `capacity.py` / `resume.py` commands in [OPERATIONS.md](OPERATIONS.md). When 2/12 capacity is AVAILABLE, `resume.py --launch --supplyprint PATH` delegates one guarded retry to SupplyPrint's saved network. Keep `SupplyPrint-Oracle-A1-Capacity` read-only and unchanged.
