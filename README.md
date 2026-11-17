@@ -2,6 +2,8 @@
 
 Spring Boot 3 + Java 21 backend for a read-heavy URL shortener with Redis, PostgreSQL, Redpanda/Kafka analytics, Prometheus metrics, Grafana dashboards, and k6 benchmarks.
 
+Oracle Always Free production uses Caddy, the built-in frontend/backend, PostgreSQL and Redis. It commits analytics to PostgreSQL before returning a redirect and protects general URL creation with a private key; the browser has a limited demo. See [deployment status](deploy/oracle/STATUS.md), [operations and retry commands](deploy/oracle/OPERATIONS.md), and [security audit](deploy/oracle/AUDIT.md). Public deployment is currently blocked by Hyderabad host capacity. The Kafka architecture and benchmark defaults below describe the development configuration.
+
 ## Architecture
 
 ![Architecture diagram](docs/images/architecture.svg)

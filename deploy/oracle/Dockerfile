@@ -3,9 +3,8 @@ FROM --platform=$BUILDPLATFORM maven:3.9.16-eclipse-temurin-21@sha256:99e61abcff
 WORKDIR /build
 ENV MAVEN_OPTS="-Xmx512m"
 COPY pom.xml ./
-RUN --mount=type=cache,target=/root/.m2 mvn -B -q dependency:go-offline
 COPY src ./src
-RUN --mount=type=cache,target=/root/.m2 mvn -B -q -DskipTests package
+RUN --mount=type=cache,target=/root/.m2 mvn -B -ntp -Dmaven.test.skip=true package
 
 FROM eclipse-temurin:21-jre-noble@sha256:0d57a8e90c2bb844c5a8e1b2b71e11eff06dad7edcfd803cd21ed4ae203b2515
 RUN groupadd --system --gid 10001 shortener && useradd --system --uid 10001 --gid shortener --home /app shortener

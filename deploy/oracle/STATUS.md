@@ -4,7 +4,7 @@
 
 ## Verified infrastructure
 
-Authenticated inventory on 2026-11-17, 23:05 IST (17:35 UTC): home region **ap-hyderabad-1**, no compute instances, no boot/block volumes, zero A1 allocation. SupplyPrint's one saved VCN and public subnet match live resources. Both **VM.Standard.A1.Flex 2 OCPUs / 12 GB** and **VM.Standard.E2.1.Micro** report **OUT_OF_HOST_CAPACITY** in Hyderabad's available domain.
+Authenticated inventory refreshed on 2026-11-17, 23:55 IST (18:25 UTC): home region **ap-hyderabad-1**, no compute instances, no boot/block volumes, zero A1 allocation. SupplyPrint's one saved VCN and public subnet match live resources. Both **VM.Standard.A1.Flex 2 OCPUs / 12 GB** and **VM.Standard.E2.1.Micro** report **OUT_OF_HOST_CAPACITY** in Hyderabad's available domain. Official Ubuntu 24.04 images are compatible with both shapes. The existing network allows TCP 80/443 publicly and TCP 22 only from its saved operator /32; it exposes no data-service ports. The capacity watcher remains Ready.
 
 The approved eventual allocation remains A1 **2 OCPUs / 12 GB / 50 GB boot** within the user's combined **200 GB storage ceiling**. The account's Free Tier/non-PAYG status is confirmed by the user; IAM does not supply a billing-plan verification. A1 billing type is LIMITED_FREE, E2 is ALWAYS_FREE. Quota headroom does not prove free allowance.
 
